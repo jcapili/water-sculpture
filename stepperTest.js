@@ -1,5 +1,5 @@
 // One revolution with stepsPerRev = 200 is about 1700
-// 1 revolution = 1/75" lateral movement
+// 1 revolution = 1.75" lateral movement
 
 var five = require("johnny-five");
 var board = new five.Board();
@@ -15,9 +15,9 @@ board.on("ready", function() {
    *
    */
 
-  
-  // myStepper.prototype.position = 330;
-  // myStepper.__defineGetter__("position", function(){return this.position;})
+
+  five.Stepper.prototype.position = 330;
+  five.Stepper.prototype.getPosition = function(){return this.position};
 
 
   var stepper1 = new five.Stepper({
@@ -29,29 +29,20 @@ board.on("ready", function() {
     }
   });
 
-  var myStepper = {
-    stepper = stepper1,
-    getStepper : function() {
-      return this.stepper;
-    },
-    position : 0,
-    setPosition : function(newPosition) {
-      this.position = newPosition;
-    },
-    isMoving : false,
-    setIsMoving : function(bool) {
-      this.isMoving = bool;
-    }
-  };
-
-  var stepper1 = new five.Stepper({
-    type: five.Stepper.TYPE.DRIVER,
-    stepsPerRev: 200,
-    pins: {
-      step: 6,
-      dir: 5
-    }
-  });
+  // var myStepper = {
+  //   stepper = stepper1,
+  //   getStepper : function() {
+  //     return this.stepper;
+  //   },
+  //   position : 0,
+  //   setPosition : function(newPosition) {
+  //     this.position = newPosition;
+  //   },
+  //   isMoving : false,
+  //   setIsMoving : function(bool) {
+  //     this.isMoving = bool;
+  //   }
+  // };
 
   var stepper2 = new five.Stepper({
     type: five.Stepper.TYPE.DRIVER,
@@ -65,16 +56,17 @@ board.on("ready", function() {
   var _steps = 1700;
 
   // Make 10 full revolutions counter-clockwise at 180 rpm with acceleration and deceleration
-  myStepper.getStepper().step({
+  stepper1.step({
     steps: _steps,
     direction: five.Stepper.DIRECTION.CCW,
     rpm: 300
   }, function() {
     console.log("Done moving CCW");
+    console.log("Position: ",stepper1.position);
 
     // once first movement is done, make 10 revolutions clockwise at previously
     //      defined speed, accel, and decel by passing an object into stepper.step
-    myStepper.getStepper().step({
+    stepper1.step({
       steps: _steps,
       direction: five.Stepper.DIRECTION.CW
     }, function() {
