@@ -18,35 +18,44 @@ board.on("ready", function() {
 
 	// global variables
 	var acceptingCommands = true;
-	var myRPM = 1000;
+	var myRPM = 1200;
 	var myAccel = 60000;
 	var myDecel = 60000;
 
 	// Add functionality to Johnny-Five Stepper class
 	five.Stepper.prototype.position = 0;
-	// five.Stepper.prototype.setPosition = function(pos){this.position=pos};
 	five.Stepper.prototype.isMoving = false;
-	// five.Stepper.prototype.setIsMoving = function(bool){this.isMoving=bool};
-	five.Stepper.prototype.moveTo = function(pos) {
-		if( this.position != pos ) {
-			console.log("moving from ",position," to ",pos,"...");		
-			this.isMoving = true;
-			var dir = 0;
-			var stepsToMove = pos-this.position;
-			if(stepsToMove>0){dir=1;}
 
-			this.step({
+	// This function can't use prototype because you need to pass the stepper in as a variable so that the isMoving
+	// boolean can then be changed within the function
+	var moveTo = function(stepper,pos,vel) {
+		if( stepper.position != pos ) {
+			console.log("moving from ",stepper.position," to ",pos,"...");		
+			stepper.isMoving = true;
+			var dir = 0;
+			var stepsToMove = pos-stepper.position;
+			var newRPM = myRPM*vel/1000;
+			if(stepsToMove>0){dir=1;}
+			if(newRPM<1000){newRPM=1000;}
+
+			stepper.step({
 				steps: Math.abs(stepsToMove),
 				direction: dir,
-				rpm: myRPM,
-				decel: myDecel},
+				rpm: newRPM
+				// decel: myDecel
+				},
 				function(){
 					console.log("Done");
-					this.isMoving = false;
-					this.position = pos;
+					stepper.isMoving = false;
+					stepper.position = pos;
 			});
 		}
 	};
+
+	// Oscillates the stepper back to 0 from it's current position according to the dampened oscillation of water
+	var reset = function(stepper) {
+
+	}
 
    // declare steppers according to EasyDriver setup
 	var stepper1 = new five.Stepper({
@@ -69,48 +78,39 @@ board.on("ready", function() {
 
 	ws.on('message', function(data, flags) {
 		frame = JSON.parse(data);
-		console.log("here");
 		// if only one hand is present
 		if (frame.hands && frame.hands.length == 1) {
 			// console.log("hand in frame");
 			// extract centre palm position in mm [x,y,z]
-			palm = frame.hands[0].palmPosition;
-			palmX = mapX(palm[0]);
-			palmY = mapY(palm[1]);
+			var palm = frame.hands[0].palmPosition;
+			var palmX = mapX(palm[0]);
+			var palmY = mapY(palm[1]);
+			var velocity = frame.hands[0].palmVelocity;
+			var velX = velocity[0];
+			var velY = velocity[1];
+			// console.log(frame.hands[0].palmVelocity);
 			// console.log(stepsToMove);
 
 			if (acceptingCommands == true) {	
 				// console.log(stepsToMove);	
 				acceptingCommands = false;
-				stepper1.moveTo(palmX);
-				stepper2.moveTo(palmY);
-				setTimeout(function(){},1000);
+				moveTo(stepper1,palmX,Math.abs(velX));
+				moveTo(stepper2,palmY,Math.abs(velY));
+				// setTimeout(function(){},1000);
 			}
 		}
 		else {
-			console.log("no hand in frame");
 			if (acceptingCommands == true) {
-				console.log("resetting...");
-				acceptingCommands = false;
-				stepper1.moveTo(0);
-				stepper2.moveTo(0);
-				setTimeout(function(){},1000);
+				// console.log("resetting...");
+				// acceptingCommands = false;
+				moveTo(stepper1,0,myRPM);
+				moveTo(stepper2,0,myRPM);
+				// setTimeout(function(){},1000);
 			}
 		}
 
-		acceptingCommands = !(stepper1.isMoving || stepper2.isMoving);
+		acceptingCommands = !(stepper1.isMoving||stepper2.isMoving);
     });
-
-    // // Oscillates servo back to origin
-    // function oscillate(stepper,position) {
-    // 	var steps = position - 330;
-    // 	if( steps > 0 ) {
-    // 		stepper.step
-    // 	}
-    // 	else if( steps > 0 ) {
-
-    // 	}
-    // }
 });
 
 // Simplifies Leap data to round to the nearest 10 and 
