@@ -19,10 +19,10 @@ board.on("ready", function() {
 	// global variables
 	var acceptingCommands = true;
 	var myRPM = 1000;
-	var myAccel = 60000;
-	var myDecel = 60000;
+	// var myAccel = 60000;
+	// var myDecel = 60000;
 	var resetRatios = [];
-	var resetAvailable = true;
+	var isReset = true;
 
 	for( i = 0.01; i <= 2*Math.PI; i+=0.01 ) {
 		raw_ans = -1*Math.pow(Math.E,-0.3*i)*Math.sin(Math.PI*i);
@@ -39,11 +39,21 @@ board.on("ready", function() {
 	// This function can't use prototype because you need to pass the stepper in as a variable so that the isMoving
 	// boolean can then be changed within the function
 	var moveTo = function(stepper,pos) {
-		if( stepper.position != pos ) {
-			console.log("moving from ",stepper.position," to ",pos,"...");		
+		var nextPos = 0;
+
+		if(typeof pos == 'number'){
+			nextPos = pos;
+		} else if (Array.isArray(pos)){
+			// console.log("I'm an array");
+			nextPos = pos.shift();
+			if(Math.abs(nextPos)<500){nextPos=0;}
+		}
+
+		if( stepper.position != nextPos ) {
+			console.log("moving from ",stepper.position," to ",nextPos,"...");		
 			stepper.isMoving = true;
 			var dir = 0;
-			var stepsToMove = pos-stepper.position;
+			var stepsToMove = nextPos-stepper.position;
 			if(stepsToMove>0){dir=1;}
 			// if(newRPM<1000){newRPM=1000;}
 
@@ -54,40 +64,20 @@ board.on("ready", function() {
 				// decel: myDecel
 				},
 				function(){
-					console.log("Done");
-					stepper.isMoving = false;
-					stepper.position = pos;
+					if( typeof pos == 'number' || 
+						( Array.isArray(pos) && nextPos == 0) ||
+						( Array.isArray(pos) && pos.length == 0 )) {
+						console.log("Done");
+						stepper.isMoving = false;
+						stepper.position = nextPos;
+					}
+					else{
+						stepper.position = nextPos;
+						moveTo(stepper,pos);
+					}
 			});
 		}
 	};
-
-	// Oscillates the stepper back to 0 from it's current position according to the dampened oscillation of water
-	var reset = function(stepper,positions=resetRatios.map(function(x){return Math.round(x*stepper.position)})) {
-		var pos = positions.shift();
-		if(Math.abs(pos)<500){pos=0;}
-		var dir = 0;
-		var stepsToMove = pos-stepper.position;
-		stepper.isMoving = true;
-		if(stepsToMove>0){dir=1;}
-
-		stepper.step({
-				steps: Math.abs(stepsToMove),
-				direction: dir,
-				rpm: myRPM
-				// decel: myDecel
-				},
-				function(){
-					if(positions.length == 0 || pos == 0){
-						stepper.isMoving = false;
-						stepper.position = pos;
-					}
-					// console.log("Done");
-					else{
-						stepper.position = pos;
-						reset(stepper,positions);
-					}
-			});
-	}
 
    // declare steppers according to EasyDriver setup
 	var stepper1 = new five.Stepper({
@@ -133,13 +123,16 @@ board.on("ready", function() {
 		else {
 			if (acceptingCommands == true) {
 				// console.log("resetting...");
-				reset(stepper1);
-				reset(stepper2);
+				// reset(stepper1);
+				// reset(stepper2);
+				moveTo(stepper1,resetRatios.map(function(x){return Math.round(x*stepper1.position)}));
+				moveTo(stepper2,resetRatios.map(function(x){return Math.round(x*stepper2.position)}));
 				// setTimeout(function(){},1000);
 			}
 		}
 
 		acceptingCommands = !(stepper1.isMoving||stepper2.isMoving);
+		isReset = (stepper1.position == 0) && (stepper2.position == 0);
     });
 });
 
