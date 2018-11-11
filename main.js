@@ -40,13 +40,17 @@ board.on("ready", function() {
 	// boolean can then be changed within the function
 	var moveTo = function(stepper,pos) {
 		var nextPos = 0;
+		var end = false;
 
 		if(typeof pos == 'number'){
 			nextPos = pos;
 		} else if (Array.isArray(pos)){
 			// console.log("I'm an array");
 			nextPos = pos.shift();
-			if(Math.abs(nextPos)<500){nextPos=0;}
+			if(Math.abs(nextPos)<500 || pos.length == 0){
+				nextPos=0;
+				end = true;
+			}
 		}
 
 		if( stepper.position != nextPos ) {
@@ -64,9 +68,7 @@ board.on("ready", function() {
 				// decel: myDecel
 				},
 				function(){
-					if( typeof pos == 'number' || 
-						( Array.isArray(pos) && nextPos == 0) ||
-						( Array.isArray(pos) && pos.length == 0 )) {
+					if( typeof pos == 'number' || end == true ) {
 						console.log("Done");
 						stepper.isMoving = false;
 						stepper.position = nextPos;
