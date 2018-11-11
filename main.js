@@ -18,9 +18,19 @@ board.on("ready", function() {
 
 	// global variables
 	var acceptingCommands = true;
-	var myRPM = 1200;
+	var myRPM = 1000;
 	var myAccel = 60000;
 	var myDecel = 60000;
+	var resetRatios = [];
+	var resetAvailable = true;
+
+	for( i = 0.01; i <= 2*Math.PI; i+=0.01 ) {
+		raw_ans = -1*Math.pow(Math.E,-0.3*i)*Math.sin(Math.PI*i);
+		rounded = Math.round(raw_ans*10000);
+		if(rounded==0){
+			resetRatios.push(Math.pow(Math.E,-0.3*i)*Math.cos(Math.PI*i));
+		}
+	}
 
 	// Add functionality to Johnny-Five Stepper class
 	five.Stepper.prototype.position = 0;
@@ -28,20 +38,19 @@ board.on("ready", function() {
 
 	// This function can't use prototype because you need to pass the stepper in as a variable so that the isMoving
 	// boolean can then be changed within the function
-	var moveTo = function(stepper,pos,vel) {
+	var moveTo = function(stepper,pos) {
 		if( stepper.position != pos ) {
 			console.log("moving from ",stepper.position," to ",pos,"...");		
 			stepper.isMoving = true;
 			var dir = 0;
 			var stepsToMove = pos-stepper.position;
-			var newRPM = myRPM*vel/1000;
 			if(stepsToMove>0){dir=1;}
-			if(newRPM<1000){newRPM=1000;}
+			// if(newRPM<1000){newRPM=1000;}
 
 			stepper.step({
 				steps: Math.abs(stepsToMove),
 				direction: dir,
-				rpm: newRPM
+				rpm: myRPM
 				// decel: myDecel
 				},
 				function(){
@@ -53,8 +62,31 @@ board.on("ready", function() {
 	};
 
 	// Oscillates the stepper back to 0 from it's current position according to the dampened oscillation of water
-	var reset = function(stepper) {
+	var reset = function(stepper,positions=resetRatios.map(function(x){return Math.round(x*stepper.position)})) {
+		var pos = positions.shift();
+		if(Math.abs(pos)<500){pos=0;}
+		var dir = 0;
+		var stepsToMove = pos-stepper.position;
+		stepper.isMoving = true;
+		if(stepsToMove>0){dir=1;}
 
+		stepper.step({
+				steps: Math.abs(stepsToMove),
+				direction: dir,
+				rpm: myRPM
+				// decel: myDecel
+				},
+				function(){
+					if(positions.length == 0 || pos == 0){
+						stepper.isMoving = false;
+						stepper.position = pos;
+					}
+					// console.log("Done");
+					else{
+						stepper.position = pos;
+						reset(stepper,positions);
+					}
+			});
 	}
 
    // declare steppers according to EasyDriver setup
@@ -85,26 +117,24 @@ board.on("ready", function() {
 			var palm = frame.hands[0].palmPosition;
 			var palmX = mapX(palm[0]);
 			var palmY = mapY(palm[1]);
-			var velocity = frame.hands[0].palmVelocity;
-			var velX = velocity[0];
-			var velY = velocity[1];
-			// console.log(frame.hands[0].palmVelocity);
+			// var velocity = frame.hands[0].palmVelocity;
+			// var velX = velocity[0];
+			// var velY = velocity[1];
 			// console.log(stepsToMove);
 
 			if (acceptingCommands == true) {	
 				// console.log(stepsToMove);	
 				acceptingCommands = false;
-				moveTo(stepper1,palmX,Math.abs(velX));
-				moveTo(stepper2,palmY,Math.abs(velY));
+				moveTo(stepper1,palmX);
+				moveTo(stepper2,palmY);
 				// setTimeout(function(){},1000);
 			}
 		}
 		else {
 			if (acceptingCommands == true) {
 				// console.log("resetting...");
-				// acceptingCommands = false;
-				moveTo(stepper1,0,myRPM);
-				moveTo(stepper2,0,myRPM);
+				reset(stepper1);
+				reset(stepper2);
 				// setTimeout(function(){},1000);
 			}
 		}
@@ -118,14 +148,14 @@ board.on("ready", function() {
 var mapY = function (input) {
 	// Round input to the nearest 10 mm
 	var cleanInput = Math.round(input/10) * 10;
-	var fromCenter = cleanInput - 330;
+	var fromCenter = cleanInput - 310;
 	var output = 0;
 
 	// Determine if it's within the correct range
-	if (cleanInput < 80) {
+	if (cleanInput < 60) {
 		output = -5830;
 	}
-	else if (cleanInput > 580) {
+	else if (cleanInput > 560) {
 		output = 5830;
 	}else {
 		// if input is within range, map the 

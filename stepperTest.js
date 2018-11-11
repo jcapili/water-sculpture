@@ -59,7 +59,7 @@ board.on("ready", function() {
   stepper1.step({
     steps: _steps,
     direction: five.Stepper.DIRECTION.CCW,
-    rpm: 300
+    rpm: 1000
   }, function() {
     console.log("Done moving CCW");
     console.log("Position: ",stepper1.position);
@@ -76,7 +76,7 @@ board.on("ready", function() {
   });
 
   // Make 10 full revolutions counter-clockwise at 180 rpm with acceleration and deceleration
-  stepper2.rpm(300).ccw().step(_steps, function() {
+  stepper2.rpm(1000).ccw().step(_steps, function() {
 
     console.log("Done moving CCW");
 
